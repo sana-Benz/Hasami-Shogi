@@ -9,6 +9,8 @@ GRIS = (128, 128, 128)
 ROUGE = (255, 0, 0)
 VERT = (0, 255, 0)
 BLEU = (0, 0, 255)
+BAR_NOIR  = ( 20,  20,  20)   # haut de la barre (avantage noir)
+BAR_BLANC = (230, 230, 230)   # bas  de la barre (avantage blanc)
 
 class HasamiShogi:
     def __init__(self, taille_case: int = 60, mode_jeu: str = "2_joueurs", niveau_ia: str = "minimax"):
@@ -17,12 +19,15 @@ class HasamiShogi:
             pygame.init()
         if not pygame.display.get_init():
             pygame.display.init()
-            
-        self.taille_case = taille_case
-        self.taille_plateau = 9
-        self.taille_fenetre = self.taille_case * self.taille_plateau
-        self.largeur_fenetre = self.taille_fenetre + 200  # Espace pour les options
-        self.fenetre = pygame.display.set_mode((self.largeur_fenetre, self.taille_fenetre))
+        self.historique_positions = []   # liste des clés successives
+        self.compte_repetition = 1       # compteur de répétitions consécutives
+        self.taille_case     = taille_case
+        self.taille_plateau  = 9
+        self.taille_fenetre  = self.taille_case * self.taille_plateau
+        self.largeur_fenetre = self.taille_fenetre + 200   # zone options à droite
+        self.fenetre = pygame.display.get_surface()  # ré‑utilise la fenêtre déjà créée
+        if self.fenetre is None:                     # si jamais on lance le module seul
+            self.fenetre = pygame.display.set_mode((self.largeur_fenetre, self.taille_fenetre))
         pygame.display.set_caption("Hasami Shogi")
         
         # Mode de jeu et IA
@@ -148,20 +153,61 @@ class HasamiShogi:
             
             # Afficher le message de fin de partie si la partie est terminée
             if self.partie_terminee:
-                # Créer un overlay semi-transparent
                 overlay = pygame.Surface((self.largeur_fenetre, self.taille_fenetre))
                 overlay.fill(BLANC)
                 overlay.set_alpha(128)
                 self.fenetre.blit(overlay, (0, 0))
-                
-                # Message de victoire
+
                 police_grande = pygame.font.Font(None, 48)
-                message = f"Le joueur {'Noir' if self.gagnant == 1 else 'Blanc'} a gagné!"
+                if self.gagnant in (1, 2):
+                    message = f"Le joueur {'Noir' if self.gagnant == 1 else 'Blanc'} a gagné !"
+                else:
+                    message = "Match nul par répétition"
+
                 texte_message = police_grande.render(message, True, NOIR)
-                self.fenetre.blit(texte_message, 
-                                (self.largeur_fenetre//2 - texte_message.get_width()//2,
-                                 self.taille_fenetre//2 - 50))
-            
+                self.fenetre.blit(
+                    texte_message,
+                    (self.largeur_fenetre//2 - texte_message.get_width()//2,
+                    self.taille_fenetre//2 - 50)
+    )
+
+                
+
+            if self.ia:                        # que ce soit Minimax ou Alpha‑Beta
+                # score positif ⇒ avantage Noir, négatif ⇒ avantage Blanc
+                        score_n = self.ia.evaluer_position(self.plateau, 1)
+                        score_b = self.ia.evaluer_position(self.plateau, 2)
+                        eval_global = score_n - score_b       # ∈ [-inf, +inf]
+
+                        # On borne pour éviter une barre démesurée
+                        eval_global = max(-10.0, min(10.0, eval_global))
+
+                        # Convertit en pourcentage (‑10 → 0 %,   0 → 50 %,  +10 → 100 %)
+                        pct_noir = (eval_global + 10) / 20
+
+                        # Dimensions
+                        x_bar   = self.taille_fenetre + 170   # 20 px du bord droit
+                        w_bar   = 20
+                        h_total = self.taille_fenetre
+                        h_noir  = int(pct_noir * h_total)
+
+                        # Dessine la moitié supérieure (Noir) et inférieure (Blanc)
+                        pygame.draw.rect(self.fenetre, BAR_BLANC,
+                                        (x_bar, 0, w_bar, h_total - h_noir))     # bas
+                        pygame.draw.rect(self.fenetre, BAR_NOIR,
+                                        (x_bar, h_total - h_noir, w_bar, h_noir)) # haut
+
+                        # Fine bordure
+                        pygame.draw.rect(self.fenetre, NOIR,
+                                        (x_bar, 0, w_bar, h_total), 1)
+
+                        # Labels N/B
+                        police_bar = pygame.font.Font(None, 20)
+                        txtN = police_bar.render("N", True, NOIR)
+                        txtB = police_bar.render("B", True, NOIR)
+                        self.fenetre.blit(txtN, (x_bar - 12, 2))
+                        self.fenetre.blit(txtB, (x_bar - 12, h_total - txtB.get_height() - 2))
+                    # ----------------------------------------------------------------
             pygame.display.flip()
             return True
         except pygame.error as e:
@@ -262,7 +308,18 @@ class HasamiShogi:
         captures = self.verifier_capture(arrivee)
         for i, j in captures:
             self.plateau[i][j] = 0
-        
+        cle = self.cle_position()
+        if self.historique_positions and cle == self.historique_positions[-1]:
+            self.compte_repetition += 1
+        else:
+            self.compte_repetition = 1
+        self.historique_positions.append(cle)
+
+        if self.compte_repetition >= 3:
+            self.partie_terminee = True
+            self.gagnant = 0      # 0 = match nul
+            print("Match nul : position répétée 3 fois d'affilée")
+# -------------------------------------------------------
         return True
     
     def verifier_victoire(self) -> Optional[int]:
@@ -354,6 +411,11 @@ class HasamiShogi:
             self.dessiner_plateau()
         
         pygame.quit()
+    def cle_position(self) -> str:
+        # '0' pour case vide, '1' noir, '2' blanc   → 81 caractères
+        board_str = ''.join(map(str, self.plateau.flatten()))
+        # on ajoute le joueur qui doit jouer
+        return board_str + str(self.joueur_actuel)
 
 if __name__ == "__main__":
     jeu = HasamiShogi()
