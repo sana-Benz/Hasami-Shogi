@@ -22,8 +22,7 @@ class HasamiShogi:
         if not pygame.font.get_init():
             pygame.font.init()
             
-        self.historique_positions = []   # liste des clés successives
-        self.compte_repetition = 1       # compteur de répétitions consécutives
+        
         self.taille_case     = taille_case
         self.taille_plateau  = 9
         self.taille_fenetre  = self.taille_case * self.taille_plateau
@@ -46,6 +45,7 @@ class HasamiShogi:
         
         # Variables de jeu
         self.joueur_actuel = 1  # 1 pour noir, 2 pour blanc
+        self.positions_occurrence = {self.cle_position(): 1}
         self.pion_selectionne = None
         self.coups_valides = []
         self.partie_terminee = False
@@ -328,17 +328,16 @@ class HasamiShogi:
         captures = self.verifier_capture(arrivee)
         for i, j in captures:
             self.plateau[i][j] = 0
-        cle = self.cle_position()
-        if self.historique_positions and cle == self.historique_positions[-1]:
-            self.compte_repetition += 1
-        else:
-            self.compte_repetition = 1
-        self.historique_positions.append(cle)
 
-        if self.compte_repetition >= 3:
+        cle = self.cle_position(3 - self.joueur_actuel)   # plateau + trait APRES le coup
+        self.positions_occurrence[cle] = \
+                self.positions_occurrence.get(cle, 0) + 1
+
+        if self.positions_occurrence[cle] >= 3:
             self.partie_terminee = True
-            self.gagnant = 0      # 0 = match nul
-            print("Match nul : position répétée 3 fois d'affilée")
+            self.gagnant = None          # ⇒ bandeau « Match nul »
+            print("Match nul : position répétée 3 fois")
+            return True                  # on quitte la fonction
 # -------------------------------------------------------
         return True
     
@@ -434,11 +433,12 @@ class HasamiShogi:
             pygame.time.delay(10)  # Ajouter un petit délai pour ne pas surcharger le CPU
         
         pygame.quit()
-    def cle_position(self) -> str:
-        # '0' pour case vide, '1' noir, '2' blanc   → 81 caractères
+    def cle_position(self, joueur: int | None = None) -> str:
+        
+        if joueur is None:          # par défaut on prend self.joueur_actuel
+            joueur = self.joueur_actuel
         board_str = ''.join(map(str, self.plateau.flatten()))
-        # on ajoute le joueur qui doit jouer
-        return board_str + str(self.joueur_actuel)
+        return board_str + str(joueur)
 
 if __name__ == "__main__":
     jeu = HasamiShogi()

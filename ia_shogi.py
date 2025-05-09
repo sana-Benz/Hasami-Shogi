@@ -9,7 +9,7 @@ class IA:
         self.profondeur_max = 2  # Réduit la profondeur pour plus de rapidité
         
     #fct eval naive
-    def evaluer_position(self, plateau: np.ndarray, joueur: int) -> float:
+    def evaluer_position_naive(self, plateau: np.ndarray, joueur: int) -> float:
         """Évalue la position actuelle du plateau."""
         pions_joueur = np.sum(plateau == joueur)
         pions_adverse = np.sum(plateau == (3 - joueur))

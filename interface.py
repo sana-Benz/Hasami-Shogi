@@ -6,18 +6,11 @@ from typing import Dict, Any, List, Tuple
 from hasami_shogi import HasamiShogi
 import numpy as np
 from ia_shogi import IA
-
 class Interface:
     def __init__(self):
         try:
             # Initialisation de Pygame
-            if not pygame.get_init():
-                pygame.init()
-            if not pygame.display.get_init():
-                pygame.display.init()
-            if not pygame.font.get_init():
-                pygame.font.init()
-                
+            pygame.init()
             self.tournoi_en_cours = False
             self.tournoi_parties = 0
             self.tournoi_max = 50
@@ -160,40 +153,14 @@ class Interface:
                             for nom, rect in self.boutons.items():
                                 if rect.collidepoint(x, y):
                                     if nom == "jouer":
-                                        try:
-                                            mode_jeu = self.options["mode_jeu"]
-                                            if mode_jeu == "2_joueurs":
-                                                niveau_ia = "minimax"  # Non utilisé en mode 2 joueurs
-                                            else:
-                                                niveau_ia = mode_jeu.split("_")[1]  # "minimax" ou "alpha_beta"
-                                            
-                                            # Réinitialiser la fenêtre avant de créer le jeu
-                                            pygame.display.quit()
-                                            pygame.display.init()
-                                            
-                                            # Créer le jeu avec les bonnes dimensions
-                                            jeu = HasamiShogi(taille_case=60, mode_jeu=mode_jeu, niveau_ia=niveau_ia)
-                                            
-                                            # Appliquer les options
-                                            for option, valeur in self.options.items():
-                                                if option != "mode_jeu":
-                                                    setattr(jeu, option, valeur)
-                                            
-                                            # Lancer la partie
-                                            jeu.executer()
-                                            
-                                            # Réinitialiser la fenêtre après la partie
-                                            pygame.display.quit()
-                                            pygame.display.init()
-                                            self.fenetre = pygame.display.set_mode((self.largeur, self.hauteur))
-                                            pygame.display.set_caption("Hasami Shogi - Menu")
-                                        except Exception as e:
-                                            print(f"Erreur lors du lancement du jeu : {e}")
-                                            # Réinitialiser la fenêtre en cas d'erreur
-                                            pygame.display.quit()
-                                            pygame.display.init()
-                                            self.fenetre = pygame.display.set_mode((self.largeur, self.hauteur))
-                                            pygame.display.set_caption("Hasami Shogi - Menu")
+                                        mode_jeu = self.options["mode_jeu"]
+                                        niveau_ia = mode_jeu.split("_")[1] if mode_jeu != "2_joueurs" else "minimax"
+                                        jeu = HasamiShogi(mode_jeu=mode_jeu, niveau_ia=niveau_ia)
+                                        for option, valeur in self.options.items():
+                                            if option != "mode_jeu":
+                                                setattr(jeu, option, valeur)
+                                        jeu.executer()
+                                        self.fenetre = pygame.display.set_mode((self.largeur, self.hauteur))
                                     elif nom == "options":
                                         self.menu_actuel = "options"
                                     elif nom == "quitter":
@@ -201,8 +168,10 @@ class Interface:
                                         break
                                     elif nom == "tournoi":
                                         # Commence une seule partie IA vs IA
+                                        from hasami_shogi import HasamiShogi
+                                        from ia_shogi import IA
                                         self.jeu_en_cours = HasamiShogi(mode_jeu="ia_vs_ia")
-                                        self.jeu_en_cours.ia1 = IA("minimax")      # Noir
+                                        self.jeu_en_cours.ia1 = IA("minmax")      # Noir
                                         self.jeu_en_cours.ia2 = IA("alpha_beta")  # Blanc
                                         self.jeu_en_cours.joueur_actuel = 1
                                         self.tournoi_en_cours = True
@@ -230,7 +199,7 @@ class Interface:
                                 self.menu_actuel = "principal"
 
                 # Simulation d'une seule partie IA Minimax vs Alpha-Beta
-                if self.tournoi_en_cours and self.jeu_en_cours:
+                if self.tournoi_en_cours and self.jeu_en_cours and self.jeu_en_cours.partie_terminee:
                     jeu = self.jeu_en_cours
                     joueur = jeu.joueur_actuel
                     ia = jeu.ia1 if joueur == 1 else jeu.ia2
@@ -265,11 +234,7 @@ class Interface:
 
         finally:
             pygame.quit()
-    def cle_position(self) -> str:
-        # '0' pour case vide, '1' noir, '2' blanc   → 81 caractères
-        board_str = ''.join(map(str, self.plateau.flatten()))
-        # on ajoute le joueur qui doit jouer
-        return board_str + str(self.joueur_actuel)
+    
 
 if __name__ == "__main__":
     interface = Interface()
