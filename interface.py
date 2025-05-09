@@ -199,7 +199,7 @@ class Interface:
                                 self.menu_actuel = "principal"
 
                 # Simulation d'une seule partie IA Minimax vs Alpha-Beta
-                if self.tournoi_en_cours and self.jeu_en_cours and self.jeu_en_cours.partie_terminee:
+                if self.tournoi_en_cours and self.jeu_en_cours and not self.jeu_en_cours.partie_terminee:
                     jeu = self.jeu_en_cours
                     joueur = jeu.joueur_actuel
                     ia = jeu.ia1 if joueur == 1 else jeu.ia2
