@@ -8,11 +8,76 @@ class IA:
         self.niveau = niveau
         self.profondeur_max = 2  # Réduit la profondeur pour plus de rapidité
         
+    #fct eval naive
     def evaluer_position(self, plateau: np.ndarray, joueur: int) -> float:
         """Évalue la position actuelle du plateau."""
         pions_joueur = np.sum(plateau == joueur)
         pions_adverse = np.sum(plateau == (3 - joueur))
         return float(pions_joueur - pions_adverse)
+    
+    #fct eval developpée
+    def evaluer_position(self, plateau: np.ndarray, joueur: int) -> float:
+        adv = 3 - joueur
+        score = 0.0
+
+        # 1️⃣ Matériel simple
+        nbr_j = np.sum(plateau == joueur)
+        nbr_a = np.sum(plateau == adv)
+        score += 1.0 * (nbr_j - nbr_a)
+
+        # 2️⃣ Centre (cases 3..5)
+        score += 0.5 * np.sum(plateau[3:6, 3:6] == joueur)
+        score -= 0.5 * np.sum(plateau[3:6, 3:6] == adv)
+
+        # 3️⃣ Mobilité
+        coups_j = len(self.obtenir_tous_coups_possibles(plateau, joueur))
+        coups_a = len(self.obtenir_tous_coups_possibles(plateau, adv))
+        score += 0.1 * (coups_j - coups_a)
+
+        # 4️⃣ Captures imminentes et pions menacés
+        def menaces(plateau, attaquant, cible):
+            m, c = 0, 0
+            for i in range(9):
+                for j in range(9):
+                    if plateau[i][j] == cible:
+                        # test horizontal
+                        if j > 0 and plateau[i][j-1] == attaquant:
+                            m += 1
+                        if j < 8 and plateau[i][j+1] == attaquant:
+                            m += 1
+                        # test vertical
+                        if i > 0 and plateau[i-1][j] == attaquant:
+                            m += 1
+                        if i < 8 and plateau[i+1][j] == attaquant:
+                            m += 1
+            return m
+
+        score += 1.0 * menaces(plateau, joueur, adv)    # pions adverses capturables
+        score -= 1.0 * menaces(plateau, adv, joueur)    # nos pions menacés
+
+        # 5️⃣ Groupes adjacents
+        def groupes(plateau, couleur):
+            g = 0
+            for i in range(9):
+                for j in range(9):
+                    if plateau[i][j] == couleur:
+                        if j < 8 and plateau[i][j+1] == couleur:
+                            g += 1
+                        if i < 8 and plateau[i+1][j] == couleur:
+                            g += 1
+            return g
+
+        score += 0.2 * (groupes(plateau, joueur) - groupes(plateau, adv))
+
+        # 6️⃣ Coins
+        coins = [(0,0),(0,8),(8,0),(8,8)]
+        for i,j in coins:
+            if plateau[i][j] == joueur:
+                score += 0.3
+            elif plateau[i][j] == adv:
+                score -= 0.3
+
+        return score
     
     def obtenir_tous_coups_possibles(self, plateau: np.ndarray, joueur: int) -> List[Tuple[Tuple[int, int], Tuple[int, int]]]:
         """Retourne tous les coups possibles pour un joueur."""
@@ -97,105 +162,113 @@ class IA:
             
         return nouveau_plateau
     
-    def minimax(self, plateau: np.ndarray, profondeur: int, est_maximisant: bool, joueur: int) -> Tuple[float, Optional[Tuple[Tuple[int, int], Tuple[int, int]]]]:
-        """Implémente l'algorithme minimax."""
-        if profondeur == 0:
-            return self.evaluer_position(plateau, joueur), None
-            
-        coups_possibles = self.obtenir_tous_coups_possibles(plateau, joueur if est_maximisant else 3 - joueur)
-        if not coups_possibles:
-            return self.evaluer_position(plateau, joueur), None
-            
-        if est_maximisant:
-            meilleur_score = float('-inf')
-            meilleur_coup = None
-            for depart, arrivee in coups_possibles:
-                nouveau_plateau = self.simuler_coup(plateau, depart, arrivee, joueur)
-                score, _ = self.minimax(nouveau_plateau, profondeur - 1, False, joueur)
-                if score > meilleur_score:
-                    meilleur_score = score
-                    meilleur_coup = (depart, arrivee)
-            return meilleur_score, meilleur_coup
-        else:
-            meilleur_score = float('inf')
-            meilleur_coup = None
-            for depart, arrivee in coups_possibles:
-                nouveau_plateau = self.simuler_coup(plateau, depart, arrivee, 3 - joueur)
-                score, _ = self.minimax(nouveau_plateau, profondeur - 1, True, joueur)
-                if score < meilleur_score:
-                    meilleur_score = score
-                    meilleur_coup = (depart, arrivee)
-            return meilleur_score, meilleur_coup
+    # --- MINIMAX ---
+    def minimax(self, plateau: np.ndarray, joueur: int, profondeur: int) -> Optional[Tuple[Tuple[int, int], Tuple[int, int]]]:
+        """C'est la fonction qui choisit le coup optimal pour l'IA selon Minimax.
+        Pour chaque coup possible, simule le coup et appelle MIN_VALUE pour évaluer la réponse de l'adversaire. Retourne le coup qui maximise la valeur."""
+        actions = self.obtenir_tous_coups_possibles(plateau, joueur)
+        if not actions:
+            return None
+        best_action = None
+        best_value = float('-inf')
+        for action in actions:
+            value = self.MIN_VALUE(self.simuler_coup(plateau, action[0], action[1], joueur), joueur, profondeur-1)
+            if value > best_value:
+                best_value = value
+                best_action = action
+        return best_action
+
+    def MIN_VALUE(self, plateau: np.ndarray, joueur: int, profondeur: int) -> float:
+        """Noeud adversaire dans Minimax (minimise la valeur)."""
+        if profondeur == 0 or not self.obtenir_tous_coups_possibles(plateau, 3-joueur):
+            return self.evaluer_position(plateau, joueur)
+        v = float('inf')
+        actions = self.obtenir_tous_coups_possibles(plateau, 3-joueur)
+        for action in actions:
+            v = min(v, self.MAX_VALUE(self.simuler_coup(plateau, action[0], action[1], 3-joueur), joueur, profondeur-1))
+        return v
+
+    def MAX_VALUE(self, plateau: np.ndarray, joueur: int, profondeur: int) -> float:
+        """Noeud IA/MAX dans Minimax (maximise la valeur)."""
+        if profondeur == 0 or not self.obtenir_tous_coups_possibles(plateau, joueur):
+            return self.evaluer_position(plateau, joueur)
+        v = float('-inf')
+        actions = self.obtenir_tous_coups_possibles(plateau, joueur)
+        for action in actions:
+            v = max(v, self.MIN_VALUE(self.simuler_coup(plateau, action[0], action[1], joueur), joueur, profondeur-1))
+        return v
     
-    def alpha_beta(self, plateau: np.ndarray, profondeur: int, est_maximisant: bool,
-                   joueur: int, alpha: float = float('-inf'),
-                   beta: float = float('inf')) -> Tuple[float, Optional[Tuple[Tuple[int, int], Tuple[int, int]]]]:
-        """Implémente l'algorithme alpha-beta."""
-        if profondeur == 0:
-            return self.evaluer_position(plateau, joueur), None
-            
-        coups_possibles = self.obtenir_tous_coups_possibles(plateau, joueur if est_maximisant else 3 - joueur)
-        if not coups_possibles:
-            return self.evaluer_position(plateau, joueur), None
-            
-        if est_maximisant:
-            meilleur_score = float('-inf')
-            meilleur_coup = None
-            for depart, arrivee in coups_possibles:
-                nouveau_plateau = self.simuler_coup(plateau, depart, arrivee, joueur)
-                score, _ = self.alpha_beta(nouveau_plateau, profondeur - 1, False, joueur, alpha, beta)
-                if score > meilleur_score:
-                    meilleur_score = score
-                    meilleur_coup = (depart, arrivee)
-                alpha = max(alpha, meilleur_score)
-                if beta <= alpha:
-                    break
-            return meilleur_score, meilleur_coup
-        else:
-            meilleur_score = float('inf')
-            meilleur_coup = None
-            for depart, arrivee in coups_possibles:
-                nouveau_plateau = self.simuler_coup(plateau, depart, arrivee, 3 - joueur)
-                score, _ = self.alpha_beta(nouveau_plateau, profondeur - 1, True, joueur, alpha, beta)
-                if score < meilleur_score:
-                    meilleur_score = score
-                    meilleur_coup = (depart, arrivee)
-                beta = min(beta, meilleur_score)
-                if beta <= alpha:
-                    break
-            return meilleur_score, meilleur_coup
-    def choisir_coup(self,
-                 plateau: np.ndarray,
-                 joueur: int,
-                 jeu: HasamiShogi
-                 ) -> Optional[Tuple[Tuple[int, int], Tuple[int, int]]]:
+    # --- ALPHA-BETA ---
+    def alpha_beta(self, plateau: np.ndarray, joueur: int, profondeur: int) -> Optional[Tuple[Tuple[int, int], Tuple[int, int]]]:
+        """Utilise l'élagage alpha-bêta pour ignorer les branches inutiles."""
+        actions = self.obtenir_tous_coups_possibles(plateau, joueur)
+        if not actions:
+            return None
+        best_action = None
+        v = float('-inf')
+        alpha = float('-inf')
+        beta = float('inf')
+        for action in actions:
+            value = self.AB_MIN_VALUE(self.simuler_coup(plateau, action[0], action[1], joueur), joueur, profondeur-1, alpha, beta)
+            if value > v:
+                v = value
+                best_action = action
+            alpha = max(alpha, v)
+        return best_action
+
+    def AB_MAX_VALUE(self, plateau: np.ndarray, joueur: int, profondeur: int, alpha: float, beta: float) -> float:
+        """Coupe l'exploration si la valeur courante de la fonction Eval dépasse beta (élagage)."""
+        if profondeur == 0 or not self.obtenir_tous_coups_possibles(plateau, joueur):
+            return self.evaluer_position(plateau, joueur)
+        v = float('-inf')
+        actions = self.obtenir_tous_coups_possibles(plateau, joueur)
+        for action in actions:
+            v = max(v, self.AB_MIN_VALUE(self.simuler_coup(plateau, action[0], action[1], joueur), joueur, profondeur-1, alpha, beta))
+            if v >= beta:
+                return v
+            alpha = max(alpha, v)
+        return v
+
+    def AB_MIN_VALUE(self, plateau: np.ndarray, joueur: int, profondeur: int, alpha: float, beta: float) -> float:
+        """Coupe l'exploration si la valeur courante de la fonction Eval descend sous alpha (élagage)."""
+        if profondeur == 0 or not self.obtenir_tous_coups_possibles(plateau, 3-joueur):
+            return self.evaluer_position(plateau, joueur)
+        v = float('inf')
+        actions = self.obtenir_tous_coups_possibles(plateau, 3-joueur)
+        for action in actions:
+            v = min(v, self.AB_MAX_VALUE(self.simuler_coup(plateau, action[0], action[1], 3-joueur), joueur, profondeur-1, alpha, beta))
+            if v <= alpha:
+                return v
+            beta = min(beta, v)
+        return v
+        
+    def choisir_coup(self, plateau: np.ndarray, joueur: int, jeu: HasamiShogi) -> Optional[Tuple[Tuple[int, int], Tuple[int, int]]]:
         """
         Choisit un coup :
             • mélange la liste de coups pour éviter toujours le même ordre
             • si plusieurs coups ont le même score, en prend un au hasard
         """
         try:
-            # 1️⃣ Tous les coups possibles mélangés
+            # 1️⃣ Tous les coups possibles mélangés
             coups_possibles = self.obtenir_tous_coups_possibles(plateau, joueur)
             if not coups_possibles:
                 return None
             random.shuffle(coups_possibles)
 
-            # 2️⃣ Début de partie : privilégier le centre
+            # 2️⃣ Début de partie : privilégier le centre
             if np.sum(plateau == 0) > 70:
                 centraux = [c for c in coups_possibles
                             if 2 <= c[1][0] <= 6 and 2 <= c[1][1] <= 6]
                 if centraux:
                     return random.choice(centraux)
 
-            # 3️⃣ Minimax ou Alpha‑Beta
+            # 3️⃣ Minimax ou Alpha‑Beta
             if self.niveau == "minimax":
                 meilleur_score = float('-inf')
                 meilleurs = []
                 for depart, arrivee in coups_possibles:
-                    score, _ = self.minimax(
-                        self.simuler_coup(plateau, depart, arrivee, joueur),
-                        self.profondeur_max - 1, False, joueur)
+                    nouveau_plateau = self.simuler_coup(plateau, depart, arrivee, joueur)
+                    score = self.MIN_VALUE(nouveau_plateau, joueur, self.profondeur_max - 1)
                     if score > meilleur_score:
                         meilleur_score = score
                         meilleurs = [(depart, arrivee)]
@@ -206,10 +279,8 @@ class IA:
                 meilleur_score = float('-inf')
                 meilleurs = []
                 for depart, arrivee in coups_possibles:
-                    score, _ = self.alpha_beta(
-                        self.simuler_coup(plateau, depart, arrivee, joueur),
-                        self.profondeur_max - 1, False, joueur,
-                        alpha=float('-inf'), beta=float('inf'))
+                    nouveau_plateau = self.simuler_coup(plateau, depart, arrivee, joueur)
+                    score = self.AB_MIN_VALUE(nouveau_plateau, joueur, self.profondeur_max - 1, float('-inf'), float('inf'))
                     if score > meilleur_score:
                         meilleur_score = score
                         meilleurs = [(depart, arrivee)]
@@ -258,65 +329,4 @@ class IA:
 
             return jeu.gagnant, coups_joués   
         
-    def evaluer_position(self, plateau: np.ndarray, joueur: int) -> float:
-        adv = 3 - joueur
-        score = 0.0
-
-        # 1️⃣ Matériel simple
-        nbr_j = np.sum(plateau == joueur)
-        nbr_a = np.sum(plateau == adv)
-        score += 1.0 * (nbr_j - nbr_a)
-
-        # 2️⃣ Centre (cases 3..5)
-        score += 0.5 * np.sum(plateau[3:6, 3:6] == joueur)
-        score -= 0.5 * np.sum(plateau[3:6, 3:6] == adv)
-
-        # 3️⃣ Mobilité
-        coups_j = len(self.obtenir_tous_coups_possibles(plateau, joueur))
-        coups_a = len(self.obtenir_tous_coups_possibles(plateau, adv))
-        score += 0.1 * (coups_j - coups_a)
-
-        # 4️⃣ Captures imminentes et pions menacés
-        def menaces(plateau, attaquant, cible):
-            m, c = 0, 0
-            for i in range(9):
-                for j in range(9):
-                    if plateau[i][j] == cible:
-                        # test horizontal
-                        if j > 0 and plateau[i][j-1] == attaquant:
-                            m += 1
-                        if j < 8 and plateau[i][j+1] == attaquant:
-                            m += 1
-                        # test vertical
-                        if i > 0 and plateau[i-1][j] == attaquant:
-                            m += 1
-                        if i < 8 and plateau[i+1][j] == attaquant:
-                            m += 1
-            return m
-
-        score += 1.0 * menaces(plateau, joueur, adv)    # pions adverses capturables
-        score -= 1.0 * menaces(plateau, adv, joueur)    # nos pions menacés
-
-        # 5️⃣ Groupes adjacents
-        def groupes(plateau, couleur):
-            g = 0
-            for i in range(9):
-                for j in range(9):
-                    if plateau[i][j] == couleur:
-                        if j < 8 and plateau[i][j+1] == couleur:
-                            g += 1
-                        if i < 8 and plateau[i+1][j] == couleur:
-                            g += 1
-            return g
-
-        score += 0.2 * (groupes(plateau, joueur) - groupes(plateau, adv))
-
-        # 6️⃣ Coins
-        coins = [(0,0),(0,8),(8,0),(8,8)]
-        for i,j in coins:
-            if plateau[i][j] == joueur:
-                score += 0.3
-            elif plateau[i][j] == adv:
-                score -= 0.3
-
-        return score
+    
