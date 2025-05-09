@@ -45,7 +45,7 @@ class HasamiShogi:
         
         # Options de jeu
         self.capture_diagonale = False
-        self.capture_multiple_corners = True
+        self.capture_multiple_corners = False
         self.seuil_defaite = 2
         self.seuil_ecart_victoire = 3
         
@@ -115,7 +115,7 @@ class HasamiShogi:
             # Afficher chaque option
             options = [
                 ("Capture diagonale", self.capture_diagonale),
-                ("Capture multiple coins", self.capture_multiple_corners),
+                ("Capture coin", self.capture_multiple_corners),
                 (f"Seuil défaite: {self.seuil_defaite}", True),
                 (f"Seuil victoire: {self.seuil_ecart_victoire}", True)
             ]
@@ -199,51 +199,68 @@ class HasamiShogi:
         """Vérifie et retourne les pions capturés après un mouvement."""
         i, j = position
         captures = []
-        
-        # Vérifier les captures horizontales
-        for direction in [-1, 1]:
-            k = j + direction
+
+        # Captures classiques (horizontale, verticale)
+        for di, dj in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
             pions_adverses = []
-            while 0 <= k < self.taille_plateau:
-                if self.plateau[i][k] == 0:
+            k, l = i + di, j + dj
+            while 0 <= k < self.taille_plateau and 0 <= l < self.taille_plateau:
+                if self.plateau[k][l] == 0:
                     break
-                if self.plateau[i][k] == self.joueur_actuel:
-                    captures.extend(pions_adverses)
+                if self.plateau[k][l] == self.joueur_actuel:
+                    if pions_adverses:
+                        captures.extend(pions_adverses)
                     break
-                if self.plateau[i][k] == 3 - self.joueur_actuel:
-                    pions_adverses.append((i, k))
-                k += direction
-        
-        # Vérifier les captures verticales
-        for direction in [-1, 1]:
-            k = i + direction
-            pions_adverses = []
-            while 0 <= k < self.taille_plateau:
-                if self.plateau[k][j] == 0:
-                    break
-                if self.plateau[k][j] == self.joueur_actuel:
-                    captures.extend(pions_adverses)
-                    break
-                if self.plateau[k][j] == 3 - self.joueur_actuel:
-                    pions_adverses.append((k, j))
-                k += direction
-        
-        # Vérifier les captures diagonales si l'option est activée
+                if self.plateau[k][l] == 3 - self.joueur_actuel:
+                    pions_adverses.append((k, l))
+                k += di
+                l += dj
+
+        # Capture diagonale si activée
         if self.capture_diagonale:
             for di, dj in [(-1, -1), (-1, 1), (1, -1), (1, 1)]:
-                k, l = i + di, j + dj
                 pions_adverses = []
+                k, l = i + di, j + dj
                 while 0 <= k < self.taille_plateau and 0 <= l < self.taille_plateau:
                     if self.plateau[k][l] == 0:
                         break
                     if self.plateau[k][l] == self.joueur_actuel:
-                        captures.extend(pions_adverses)
+                        if pions_adverses:
+                            captures.extend(pions_adverses)
                         break
                     if self.plateau[k][l] == 3 - self.joueur_actuel:
                         pions_adverses.append((k, l))
                     k += di
                     l += dj
-        
+
+        # Capture d'un seul coin à la fois
+        coin_capture = None
+        coins = [ (0, 0), (0, self.taille_plateau - 1), (self.taille_plateau - 1, 0), (self.taille_plateau - 1, self.taille_plateau - 1) ]
+        for ci, cj in coins:
+            if self.plateau[ci][cj] == 3 - self.joueur_actuel:
+                # Coin en haut à gauche
+                if ci == 0 and cj == 0:
+                    if self.plateau[0][1] == self.joueur_actuel and self.plateau[1][0] == self.joueur_actuel:
+                        coin_capture = (0, 0)
+                        break
+                # Coin en haut à droite
+                elif ci == 0 and cj == self.taille_plateau - 1:
+                    if self.plateau[0][self.taille_plateau - 2] == self.joueur_actuel and self.plateau[1][self.taille_plateau - 1] == self.joueur_actuel:
+                        coin_capture = (0, self.taille_plateau - 1)
+                        break
+                # Coin en bas à gauche
+                elif ci == self.taille_plateau - 1 and cj == 0:
+                    if self.plateau[self.taille_plateau - 2][0] == self.joueur_actuel and self.plateau[self.taille_plateau - 1][1] == self.joueur_actuel:
+                        coin_capture = (self.taille_plateau - 1, 0)
+                        break
+                # Coin en bas à droite
+                elif ci == self.taille_plateau - 1 and cj == self.taille_plateau - 1:
+                    if self.plateau[self.taille_plateau - 2][self.taille_plateau - 1] == self.joueur_actuel and self.plateau[self.taille_plateau - 1][self.taille_plateau - 2] == self.joueur_actuel:
+                        coin_capture = (self.taille_plateau - 1, self.taille_plateau - 1)
+                        break
+        if coin_capture:
+            captures.append(coin_capture)
+
         return captures
     
     def deplacer_pion(self, depart: Tuple[int, int], arrivee: Tuple[int, int]) -> bool:
