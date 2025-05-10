@@ -4,16 +4,67 @@ from hasami_shogi import HasamiShogi
 import pygame
 import random
 class IA:
-    def __init__(self, niveau: str = "minimax"):
-        self.niveau = niveau
-        self.profondeur_max = 2  # Réduit la profondeur pour plus de rapidité
-        
+    def __init__(self, niveau: str = "1"):
+        self.niveau = str(niveau)
+        # Configuration selon le niveau
+        if self.niveau == "1":
+            self.profondeur_max = 3
+            self.utilise_alpha_beta = False
+            self.eval_fonction = self.evaluer_position_naive
+        elif self.niveau == "2":
+            self.profondeur_max = 4
+            self.utilise_alpha_beta = True
+            self.eval_fonction = self.evaluer_position_naive
+        elif self.niveau == "3":
+            self.profondeur_max = 4
+            self.utilise_alpha_beta = True
+            self.eval_fonction = self.evaluer_position
+        elif self.niveau == "4":
+            self.profondeur_max = 3  # dynamique, ajusté dans choisir_coup
+            self.utilise_alpha_beta = True
+            self.eval_fonction = self.evaluer_position
+        else:
+            self.profondeur_max = 2
+            self.utilise_alpha_beta = False
+            self.eval_fonction = self.evaluer_position_naive
+
     #fct eval naive
     def evaluer_position_naive(self, plateau: np.ndarray, joueur: int) -> float:
-        """Évalue la position actuelle du plateau."""
+        """Évalue la position actuelle du plateau de manière simple mais plus élaborée que la version de base."""
+        adv = 3 - joueur
+        score = 0.0
+
+        # 1️⃣ Matériel simple (comme avant)
         pions_joueur = np.sum(plateau == joueur)
-        pions_adverse = np.sum(plateau == (3 - joueur))
-        return float(pions_joueur - pions_adverse)
+        pions_adverse = np.sum(plateau == adv)
+        score += 1.0 * (pions_joueur - pions_adverse)
+
+        # 2️⃣ Centre (cases 3..5) avec un poids plus faible
+        score += 0.3 * np.sum(plateau[3:6, 3:6] == joueur)
+        score -= 0.3 * np.sum(plateau[3:6, 3:6] == adv)
+
+        # 3️⃣ Menaces simplifiées (uniquement horizontales et verticales)
+        def menaces_simples(plateau, attaquant, cible):
+            m = 0
+            for i in range(9):
+                for j in range(9):
+                    if plateau[i][j] == cible:
+                        # test horizontal
+                        if j > 0 and plateau[i][j-1] == attaquant:
+                            m += 1
+                        if j < 8 and plateau[i][j+1] == attaquant:
+                            m += 1
+                        # test vertical
+                        if i > 0 and plateau[i-1][j] == attaquant:
+                            m += 1
+                        if i < 8 and plateau[i+1][j] == attaquant:
+                            m += 1
+            return m
+
+        score += 0.5 * menaces_simples(plateau, joueur, adv)    # pions adverses capturables
+        score -= 0.5 * menaces_simples(plateau, adv, joueur)    # nos pions menacés
+
+        return score
     
     #fct eval developpée
     def evaluer_position(self, plateau: np.ndarray, joueur: int) -> float:
@@ -162,132 +213,104 @@ class IA:
             
         return nouveau_plateau
     
-    # --- MINIMAX ---
-    def minimax(self, plateau: np.ndarray, joueur: int, profondeur: int) -> Optional[Tuple[Tuple[int, int], Tuple[int, int]]]:
-        """C'est la fonction qui choisit le coup optimal pour l'IA selon Minimax.
-        Pour chaque coup possible, simule le coup et appelle MIN_VALUE pour évaluer la réponse de l'adversaire. Retourne le coup qui maximise la valeur."""
-        actions = self.obtenir_tous_coups_possibles(plateau, joueur)
-        if not actions:
-            return None
-        best_action = None
-        best_value = float('-inf')
-        for action in actions:
-            value = self.MIN_VALUE(self.simuler_coup(plateau, action[0], action[1], joueur), joueur, profondeur-1)
-            if value > best_value:
-                best_value = value
-                best_action = action
-        return best_action
+    # --- MINIMAX & ALPHA-BETA UNIFIÉS ---
+    # (1) Je supprime les anciennes fonctions minimax, alpha_beta, MIN_VALUE, MAX_VALUE, AB_MIN_VALUE, AB_MAX_VALUE
+    # (2) Je renomme les fonctions customisées sans le suffixe _custom
 
-    def MIN_VALUE(self, plateau: np.ndarray, joueur: int, profondeur: int) -> float:
-        """Noeud adversaire dans Minimax (minimise la valeur)."""
+    def MIN_VALUE(self, plateau: np.ndarray, joueur: int, profondeur: int, eval_fonction) -> float:
         if profondeur == 0 or not self.obtenir_tous_coups_possibles(plateau, 3-joueur):
-            return self.evaluer_position(plateau, joueur)
+            return eval_fonction(plateau, joueur)
         v = float('inf')
         actions = self.obtenir_tous_coups_possibles(plateau, 3-joueur)
         for action in actions:
-            v = min(v, self.MAX_VALUE(self.simuler_coup(plateau, action[0], action[1], 3-joueur), joueur, profondeur-1))
+            v = min(v, self.MAX_VALUE(self.simuler_coup(plateau, action[0], action[1], 3-joueur), joueur, profondeur-1, eval_fonction))
         return v
 
-    def MAX_VALUE(self, plateau: np.ndarray, joueur: int, profondeur: int) -> float:
-        """Noeud IA/MAX dans Minimax (maximise la valeur)."""
+    def MAX_VALUE(self, plateau: np.ndarray, joueur: int, profondeur: int, eval_fonction) -> float:
         if profondeur == 0 or not self.obtenir_tous_coups_possibles(plateau, joueur):
-            return self.evaluer_position(plateau, joueur)
+            return eval_fonction(plateau, joueur)
         v = float('-inf')
         actions = self.obtenir_tous_coups_possibles(plateau, joueur)
         for action in actions:
-            v = max(v, self.MIN_VALUE(self.simuler_coup(plateau, action[0], action[1], joueur), joueur, profondeur-1))
+            v = max(v, self.MIN_VALUE(self.simuler_coup(plateau, action[0], action[1], joueur), joueur, profondeur-1, eval_fonction))
         return v
-    
-    # --- ALPHA-BETA ---
-    def alpha_beta(self, plateau: np.ndarray, joueur: int, profondeur: int) -> Optional[Tuple[Tuple[int, int], Tuple[int, int]]]:
-        """Utilise l'élagage alpha-bêta pour ignorer les branches inutiles."""
-        actions = self.obtenir_tous_coups_possibles(plateau, joueur)
-        if not actions:
-            return None
-        best_action = None
-        v = float('-inf')
-        alpha = float('-inf')
-        beta = float('inf')
-        for action in actions:
-            value = self.AB_MIN_VALUE(self.simuler_coup(plateau, action[0], action[1], joueur), joueur, profondeur-1, alpha, beta)
-            if value > v:
-                v = value
-                best_action = action
-            alpha = max(alpha, v)
-        return best_action
 
-    def AB_MAX_VALUE(self, plateau: np.ndarray, joueur: int, profondeur: int, alpha: float, beta: float) -> float:
-        """Coupe l'exploration si la valeur courante de la fonction Eval dépasse beta (élagage)."""
+    def AB_MIN_VALUE(self, plateau: np.ndarray, joueur: int, profondeur: int, alpha: float, beta: float, eval_fonction) -> float:
+        if profondeur == 0 or not self.obtenir_tous_coups_possibles(plateau, 3-joueur):
+            return eval_fonction(plateau, joueur)
+        v = float('inf')
+        actions = self.obtenir_tous_coups_possibles(plateau, 3-joueur)
+        for action in actions:
+            v = min(v, self.AB_MAX_VALUE(self.simuler_coup(plateau, action[0], action[1], 3-joueur), joueur, profondeur-1, alpha, beta, eval_fonction))
+            if v <= alpha:
+                return v
+            beta = min(beta, v)
+        return v
+
+    def AB_MAX_VALUE(self, plateau: np.ndarray, joueur: int, profondeur: int, alpha: float, beta: float, eval_fonction) -> float:
         if profondeur == 0 or not self.obtenir_tous_coups_possibles(plateau, joueur):
-            return self.evaluer_position(plateau, joueur)
+            return eval_fonction(plateau, joueur)
         v = float('-inf')
         actions = self.obtenir_tous_coups_possibles(plateau, joueur)
         for action in actions:
-            v = max(v, self.AB_MIN_VALUE(self.simuler_coup(plateau, action[0], action[1], joueur), joueur, profondeur-1, alpha, beta))
+            v = max(v, self.AB_MIN_VALUE(self.simuler_coup(plateau, action[0], action[1], joueur), joueur, profondeur-1, alpha, beta, eval_fonction))
             if v >= beta:
                 return v
             alpha = max(alpha, v)
         return v
 
-    def AB_MIN_VALUE(self, plateau: np.ndarray, joueur: int, profondeur: int, alpha: float, beta: float) -> float:
-        """Coupe l'exploration si la valeur courante de la fonction Eval descend sous alpha (élagage)."""
-        if profondeur == 0 or not self.obtenir_tous_coups_possibles(plateau, 3-joueur):
-            return self.evaluer_position(plateau, joueur)
-        v = float('inf')
-        actions = self.obtenir_tous_coups_possibles(plateau, 3-joueur)
-        for action in actions:
-            v = min(v, self.AB_MAX_VALUE(self.simuler_coup(plateau, action[0], action[1], 3-joueur), joueur, profondeur-1, alpha, beta))
-            if v <= alpha:
-                return v
-            beta = min(beta, v)
-        return v
-        
     def choisir_coup(self, plateau: np.ndarray, joueur: int, jeu: HasamiShogi) -> Optional[Tuple[Tuple[int, int], Tuple[int, int]]]:
         """
-        Choisit un coup :
-            • mélange la liste de coups pour éviter toujours le même ordre
-            • si plusieurs coups ont le même score, en prend un au hasard
+        Choisit un coup selon le niveau de l'IA.
         """
         try:
-            # 1️⃣ Tous les coups possibles mélangés
             coups_possibles = self.obtenir_tous_coups_possibles(plateau, joueur)
             if not coups_possibles:
                 return None
             random.shuffle(coups_possibles)
 
-            # 2️⃣ Début de partie : privilégier le centre
+            # Début de partie : privilégier le centre
             if np.sum(plateau == 0) > 70:
-                centraux = [c for c in coups_possibles
-                            if 2 <= c[1][0] <= 6 and 2 <= c[1][1] <= 6]
+                centraux = [c for c in coups_possibles if 2 <= c[1][0] <= 6 and 2 <= c[1][1] <= 6]
                 if centraux:
                     return random.choice(centraux)
 
-            # 3️⃣ Minimax ou Alpha‑Beta
-            if self.niveau == "minimax":
-                meilleur_score = float('-inf')
-                meilleurs = []
-                for depart, arrivee in coups_possibles:
-                    nouveau_plateau = self.simuler_coup(plateau, depart, arrivee, joueur)
-                    score = self.MIN_VALUE(nouveau_plateau, joueur, self.profondeur_max - 1)
-                    if score > meilleur_score:
-                        meilleur_score = score
-                        meilleurs = [(depart, arrivee)]
-                    elif score == meilleur_score:
-                        meilleurs.append((depart, arrivee))
-                return random.choice(meilleurs)
-            else:  # "alpha_beta"
-                meilleur_score = float('-inf')
-                meilleurs = []
-                for depart, arrivee in coups_possibles:
-                    nouveau_plateau = self.simuler_coup(plateau, depart, arrivee, joueur)
-                    score = self.AB_MIN_VALUE(nouveau_plateau, joueur, self.profondeur_max - 1, float('-inf'), float('inf'))
-                    if score > meilleur_score:
-                        meilleur_score = score
-                        meilleurs = [(depart, arrivee)]
-                    elif score == meilleur_score:
-                        meilleurs.append((depart, arrivee))
-                return random.choice(meilleurs)
+            # Détermination de la profondeur dynamique pour le niveau 4
+            profondeur = self.profondeur_max
+            if self.niveau == "4":
+                nb_pions = np.sum(plateau != 0)
+                if nb_pions > 60:
+                    profondeur = 3
+                else:
+                    profondeur = 5
 
+            # Sélection de la méthode de recherche
+            if self.niveau == "1":
+                # Minimax sans alpha-beta, éval naïve
+                meilleur_score = float('-inf')
+                meilleurs = []
+                for depart, arrivee in coups_possibles:
+                    nouveau_plateau = self.simuler_coup(plateau, depart, arrivee, joueur)
+                    score = self.MIN_VALUE(nouveau_plateau, joueur, profondeur - 1, self.eval_fonction)
+                    if score > meilleur_score:
+                        meilleur_score = score
+                        meilleurs = [(depart, arrivee)]
+                    elif score == meilleur_score:
+                        meilleurs.append((depart, arrivee))
+                return random.choice(meilleurs)
+            else:
+                # Alpha-Beta (ou Minimax pour niveau 2, 3, 4), éval selon niveau
+                meilleur_score = float('-inf')
+                meilleurs = []
+                for depart, arrivee in coups_possibles:
+                    nouveau_plateau = self.simuler_coup(plateau, depart, arrivee, joueur)
+                    score = self.AB_MIN_VALUE(nouveau_plateau, joueur, profondeur - 1, float('-inf'), float('inf'), self.eval_fonction)
+                    if score > meilleur_score:
+                        meilleur_score = score
+                        meilleurs = [(depart, arrivee)]
+                    elif score == meilleur_score:
+                        meilleurs.append((depart, arrivee))
+                return random.choice(meilleurs)
         except Exception as e:
             print(f"Erreur choisir_coup : {e}")
             return None

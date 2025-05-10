@@ -52,9 +52,15 @@ class Interface:
             # Boutons du mode de jeu
             self.boutons_mode = [
                 ("2 joueurs", pygame.Rect(50, 150, 200, 40)),
-                ("IA (Minimax)", pygame.Rect(300, 150, 200, 40)),
-                ("IA (Alpha-Beta)", pygame.Rect(550, 150, 200, 40))
+                ("Joueur vs IA", pygame.Rect(300, 150, 200, 40)),
+                ("IA vs IA", pygame.Rect(550, 150, 200, 40))
             ]
+            
+            # Niveaux IA (pour sélection)
+            self.niveaux_ia = [1, 2, 3, 4]
+            self.niveau_ia_joueur = 1  # Pour Joueur vs IA
+            self.niveau_ia_noir = 1    # Pour IA vs IA
+            self.niveau_ia_blanc = 1   # Pour IA vs IA
             
             # État du menu
             self.menu_actuel = "principal"  # "principal" ou "options"
@@ -98,15 +104,48 @@ class Interface:
             
             # Boutons du mode de jeu
             for nom, rect in self.boutons_mode:
-                mode_correspondant = "2_joueurs" if nom == "2 joueurs" else f"ia_{nom.lower().split('(')[1].split(')')[0]}"
+                if nom == "2 joueurs":
+                    mode_correspondant = "2_joueurs"
+                elif nom == "Joueur vs IA":
+                    mode_correspondant = "joueur_vs_ia"
+                else:
+                    mode_correspondant = "ia_vs_ia"
                 couleur = self.VERT if self.options["mode_jeu"] == mode_correspondant else self.BLEU
                 pygame.draw.rect(self.fenetre, couleur, rect)
                 texte = self.police.render(nom, True, self.BLANC)
                 self.fenetre.blit(texte, (rect.centerx - texte.get_width()//2,
                                         rect.centery - texte.get_height()//2))
             
+            # Sélecteurs de niveau IA
+            y_ia = 210
+            if self.options["mode_jeu"] == "joueur_vs_ia":
+                texte = self.police.render("Niveau IA:", True, self.NOIR)
+                self.fenetre.blit(texte, (50, y_ia))
+                for idx, niveau in enumerate(self.niveaux_ia):
+                    rect = pygame.Rect(220 + idx*60, y_ia, 50, 40)
+                    couleur = self.VERT if self.niveau_ia_joueur == niveau else self.BLEU
+                    pygame.draw.rect(self.fenetre, couleur, rect)
+                    txt = self.police.render(str(niveau), True, self.BLANC)
+                    self.fenetre.blit(txt, (rect.centerx - txt.get_width()//2, rect.centery - txt.get_height()//2))
+            elif self.options["mode_jeu"] == "ia_vs_ia":
+                texteN = self.police.render("Niveau IA Noir:", True, self.NOIR)
+                texteB = self.police.render("Niveau IA Blanc:", True, self.NOIR)
+                self.fenetre.blit(texteN, (50, y_ia))
+                self.fenetre.blit(texteB, (50, y_ia+50))
+                for idx, niveau in enumerate(self.niveaux_ia):
+                    rectN = pygame.Rect(250 + idx*60, y_ia, 50, 40)
+                    rectB = pygame.Rect(250 + idx*60, y_ia+50, 50, 40)
+                    couleurN = self.VERT if self.niveau_ia_noir == niveau else self.BLEU
+                    couleurB = self.VERT if self.niveau_ia_blanc == niveau else self.BLEU
+                    pygame.draw.rect(self.fenetre, couleurN, rectN)
+                    pygame.draw.rect(self.fenetre, couleurB, rectB)
+                    txtN = self.police.render(str(niveau), True, self.BLANC)
+                    txtB = self.police.render(str(niveau), True, self.BLANC)
+                    self.fenetre.blit(txtN, (rectN.centerx - txtN.get_width()//2, rectN.centery - txtN.get_height()//2))
+                    self.fenetre.blit(txtB, (rectB.centerx - txtB.get_width()//2, rectB.centery - txtB.get_height()//2))
+            
             # Autres options
-            y = 250
+            y = 310
             for option, valeur in self.options.items():
                 if option != "mode_jeu":
                     # Texte de l'option
@@ -153,10 +192,20 @@ class Interface:
                             for nom, rect in self.boutons.items():
                                 if rect.collidepoint(x, y):
                                     if nom == "jouer":
-                                        from hasami_shogi import HasamiShogi  # Import ici pour éviter l'erreur
+                                        from hasami_shogi import HasamiShogi
                                         mode_jeu = self.options["mode_jeu"]
-                                        niveau_ia = mode_jeu.split("_")[1] if mode_jeu != "2_joueurs" else "minimax"
-                                        jeu = HasamiShogi(mode_jeu=mode_jeu, niveau_ia=niveau_ia)
+                                        if mode_jeu == "2_joueurs":
+                                            jeu = HasamiShogi(mode_jeu=mode_jeu)
+                                        elif mode_jeu == "joueur_vs_ia":
+                                            from ia_shogi import IA
+                                            jeu = HasamiShogi(mode_jeu=mode_jeu, niveau_ia=str(self.niveau_ia_joueur))
+                                            jeu.ia = IA(str(self.niveau_ia_joueur))
+                                        else:  # ia_vs_ia
+                                            from ia_shogi import IA
+                                            jeu = HasamiShogi(mode_jeu=mode_jeu)
+                                            jeu.ia1 = IA(str(self.niveau_ia_noir))
+                                            jeu.ia2 = IA(str(self.niveau_ia_blanc))
+                                            jeu.joueur_actuel = 1
                                         for option, valeur in self.options.items():
                                             if option != "mode_jeu":
                                                 setattr(jeu, option, valeur)
@@ -168,23 +217,42 @@ class Interface:
                                         en_cours = False
                                         break
                                     elif nom == "tournoi":
-                                        # Commence une seule partie IA vs IA
                                         from hasami_shogi import HasamiShogi
                                         from ia_shogi import IA
                                         self.jeu_en_cours = HasamiShogi(mode_jeu="ia_vs_ia")
-                                        self.jeu_en_cours.ia1 = IA("minmax")      # Noir
-                                        self.jeu_en_cours.ia2 = IA("alpha_beta")  # Blanc
+                                        self.jeu_en_cours.ia1 = IA(str(self.niveau_ia_noir))
+                                        self.jeu_en_cours.ia2 = IA(str(self.niveau_ia_blanc))
                                         self.jeu_en_cours.joueur_actuel = 1
                                         self.tournoi_en_cours = True
 
                         elif self.menu_actuel == "options":
                             for nom, rect in self.boutons_mode:
                                 if rect.collidepoint(x, y):
-                                    mode_correspondant = "2_joueurs" if nom == "2 joueurs" else f"ia_{nom.lower().split('(')[1].split(')')[0]}"
-                                    self.options["mode_jeu"] = mode_correspondant
+                                    if nom == "2 joueurs":
+                                        self.options["mode_jeu"] = "2_joueurs"
+                                    elif nom == "Joueur vs IA":
+                                        self.options["mode_jeu"] = "joueur_vs_ia"
+                                    else:
+                                        self.options["mode_jeu"] = "ia_vs_ia"
                                     break
 
-                            y_pos = 250
+                            # Sélection des niveaux IA
+                            y_ia = 210
+                            if self.options["mode_jeu"] == "joueur_vs_ia":
+                                for idx, niveau in enumerate(self.niveaux_ia):
+                                    rect = pygame.Rect(220 + idx*60, y_ia, 50, 40)
+                                    if rect.collidepoint(x, y):
+                                        self.niveau_ia_joueur = niveau
+                            elif self.options["mode_jeu"] == "ia_vs_ia":
+                                for idx, niveau in enumerate(self.niveaux_ia):
+                                    rectN = pygame.Rect(250 + idx*60, y_ia, 50, 40)
+                                    rectB = pygame.Rect(250 + idx*60, y_ia+50, 50, 40)
+                                    if rectN.collidepoint(x, y):
+                                        self.niveau_ia_noir = niveau
+                                    if rectB.collidepoint(x, y):
+                                        self.niveau_ia_blanc = niveau
+                            y_pos = 310
+
                             for option, valeur in self.options.items():
                                 if option != "mode_jeu":
                                     if 400 <= x <= 500 and y_pos <= y <= y_pos + 30:
