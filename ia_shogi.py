@@ -241,34 +241,19 @@ class IA:
         return sorted(actions, key=score_coup, reverse=True)
 
     def MIN_VALUE(self, plateau: np.ndarray, joueur: int, profondeur: int, eval_fonction) -> float:
-        gagnant = self.is_terminal_state(plateau, joueur)
-        if gagnant:
-            # Valeur extrême si victoire/défaite
-            if gagnant == joueur:
-                return float('inf')
-            else:
-                return float('-inf')
         if profondeur == 0 or not self.obtenir_tous_coups_possibles(plateau, 3-joueur):
             return eval_fonction(plateau, joueur)
         v = float('inf')
         actions = self.obtenir_tous_coups_possibles(plateau, 3-joueur)
-        actions = self.order_moves(actions, plateau, 3-joueur)
         for action in actions:
             v = min(v, self.MAX_VALUE(self.simuler_coup(plateau, action[0], action[1], 3-joueur), joueur, profondeur-1, eval_fonction))
         return v
 
     def MAX_VALUE(self, plateau: np.ndarray, joueur: int, profondeur: int, eval_fonction) -> float:
-        gagnant = self.is_terminal_state(plateau, joueur)
-        if gagnant:
-            if gagnant == joueur:
-                return float('inf')
-            else:
-                return float('-inf')
         if profondeur == 0 or not self.obtenir_tous_coups_possibles(plateau, joueur):
             return eval_fonction(plateau, joueur)
         v = float('-inf')
         actions = self.obtenir_tous_coups_possibles(plateau, joueur)
-        actions = self.order_moves(actions, plateau, joueur)
         for action in actions:
             v = max(v, self.MIN_VALUE(self.simuler_coup(plateau, action[0], action[1], joueur), joueur, profondeur-1, eval_fonction))
         return v
