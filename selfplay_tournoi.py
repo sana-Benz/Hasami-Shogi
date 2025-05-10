@@ -2,6 +2,7 @@ import time
 import numpy as np
 from ia_shogi import IA
 from hasami_shogi import HasamiShogi
+import pygame
 
 def jouer_match(ia_noir, ia_blanc, noir_commence=True):
     jeu = HasamiShogi(mode_jeu="ia_vs_ia")
@@ -20,6 +21,18 @@ def jouer_match(ia_noir, ia_blanc, noir_commence=True):
     while not jeu.partie_terminee and coups_joués < max_coups:
         joueur = jeu.joueur_actuel
         ia = jeu.ia1 if joueur == 1 else jeu.ia2
+        # Debug : coups possibles
+        coups_possibles = []
+        for i in range(9):
+            for j in range(9):
+                if jeu.plateau[i][j] == joueur:
+                    coups_possibles.extend(jeu.obtenir_coups_valides((i, j)))
+        print(f"Coup {coups_joués+1} | Joueur: {'Noir' if joueur==1 else 'Blanc'} | Coups possibles: {len(coups_possibles)}")
+        print(f"Nb pions noirs: {np.sum(jeu.plateau == 1)}, Nb pions blancs: {np.sum(jeu.plateau == 2)}")
+        score_n = ia_noir.evaluer_position(jeu.plateau, 1)
+        score_b = ia_blanc.evaluer_position(jeu.plateau, 2)
+        print(f"Score IA Noir: {score_n:.2f} | Score IA Blanc: {score_b:.2f}")
+
         t0 = time.perf_counter()
         coup = ia.choisir_coup(jeu.plateau, joueur, jeu)
         t1 = time.perf_counter()
@@ -41,15 +54,21 @@ def jouer_match(ia_noir, ia_blanc, noir_commence=True):
             jeu.gagnant = 3 - joueur
 
         # Calcul de l'avantage
-        score_n = ia_noir.evaluer_position(jeu.plateau, 1)
-        score_b = ia_blanc.evaluer_position(jeu.plateau, 2)
         if score_n > score_b:
             avantage_noir += 1
         elif score_b > score_n:
             avantage_blanc += 1
-        # Si égalité, on ne compte pas
 
         coups_joués += 1
+
+    # Affichage fin de partie
+    if jeu.gagnant == 1:
+        print("Victoire Noir")
+    elif jeu.gagnant == 2:
+        print("Victoire Blanc")
+    elif jeu.gagnant is None:
+        print("Match nul (répétition ou blocage)")
+    print(f"Partie terminée en {coups_joués} coups\n")
 
     return jeu.gagnant, temps_noir, temps_blanc, avantage_noir, avantage_blanc
 
