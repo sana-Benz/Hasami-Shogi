@@ -27,11 +27,10 @@ def jouer_match(ia_noir, ia_blanc, noir_commence=True):
             for j in range(9):
                 if jeu.plateau[i][j] == joueur:
                     coups_possibles.extend(jeu.obtenir_coups_valides((i, j)))
-        print(f"Coup {coups_joués+1} | Joueur: {'Noir' if joueur==1 else 'Blanc'} | Coups possibles: {len(coups_possibles)}")
-        print(f"Nb pions noirs: {np.sum(jeu.plateau == 1)}, Nb pions blancs: {np.sum(jeu.plateau == 2)}")
+        
         score_n = ia_noir.evaluer_position(jeu.plateau, 1)
         score_b = ia_blanc.evaluer_position(jeu.plateau, 2)
-        print(f"Score IA Noir: {score_n:.2f} | Score IA Blanc: {score_b:.2f}")
+        #print(f"Score IA Noir: {score_n:.2f} | Score IA Blanc: {score_b:.2f}")
 
         t0 = time.perf_counter()
         coup = ia.choisir_coup(jeu.plateau, joueur, jeu)
@@ -74,57 +73,71 @@ def jouer_match(ia_noir, ia_blanc, noir_commence=True):
 
 def tournoi_ia_vs_ia():
     niveaux = [1, 2, 3, 4]
+    duels = [(1,2), (1,3), (1,4), (2,3), (2,4), (3,4)]
     stats = {}
-    for n1 in niveaux:
-        for n2 in niveaux:
-            print(f"Match IA{n1} vs IA{n2}")
-            victoires_noir = 0
-            victoires_blanc = 0
-            nuls = 0
-            total_temps_noir = 0.0
-            total_temps_blanc = 0.0
-            total_avantage_noir = 0
-            total_avantage_blanc = 0
-            for i in range(50):
-                ia1 = IA(str(n1))
-                ia2 = IA(str(n2))
-                gagnant, t_noir, t_blanc, adv_noir, adv_blanc = jouer_match(ia1, ia2, noir_commence=True)
-                if gagnant == 1:
-                    victoires_noir += 1
-                elif gagnant == 2:
-                    victoires_blanc += 1
-                else:
-                    nuls += 1
-                total_temps_noir += t_noir
-                total_temps_blanc += t_blanc
-                total_avantage_noir += adv_noir
-                total_avantage_blanc += adv_blanc
-            for i in range(50):
-                ia1 = IA(str(n1))
-                ia2 = IA(str(n2))
-                gagnant, t_noir, t_blanc, adv_noir, adv_blanc = jouer_match(ia1, ia2, noir_commence=False)
-                if gagnant == 1:
-                    victoires_noir += 1
-                elif gagnant == 2:
-                    victoires_blanc += 1
-                else:
-                    nuls += 1
-                total_temps_noir += t_noir
-                total_temps_blanc += t_blanc
-                total_avantage_noir += adv_noir
-                total_avantage_blanc += adv_blanc
-            stats[(n1, n2)] = {
-                "victoires_noir": victoires_noir,
-                "victoires_blanc": victoires_blanc,
-                "nuls": nuls,
-                "temps_noir": total_temps_noir,
-                "temps_blanc": total_temps_blanc,
-                "avantage_noir": total_avantage_noir,
-                "avantage_blanc": total_avantage_blanc
-            }
-            print(f"Résultats IA{n1} vs IA{n2} : Noir {victoires_noir} victoires, Blanc {victoires_blanc} victoires, Nuls {nuls}")
-            print(f"Temps total : Noir {total_temps_noir:.2f}s, Blanc {total_temps_blanc:.2f}s")
-            print(f"Avantage le plus long : Noir {total_avantage_noir} coups, Blanc {total_avantage_blanc} coups")
+    duel_total = len(duels)
+    duel_num = 1
+    for n1, n2 in duels:
+        print("="*40)
+        print(f"DUEL {duel_num}/{duel_total} : IA{n1} (Noir) vs IA{n2} (Blanc)")
+        print("="*40)
+        duel_num += 1
+        print(f"Match IA{n1} vs IA{n2}")
+        victoires_noir = 0
+        victoires_blanc = 0
+        nuls = 0
+        total_temps_noir = 0.0
+        total_temps_blanc = 0.0
+        total_avantage_noir = 0
+        total_avantage_blanc = 0
+        for i in range(50):
+            ia1 = IA(str(n1))
+            ia2 = IA(str(n2))
+            gagnant, t_noir, t_blanc, adv_noir, adv_blanc = jouer_match(ia1, ia2, noir_commence=True)
+            if gagnant == 1:
+                victoires_noir += 1
+            elif gagnant == 2:
+                victoires_blanc += 1
+            else:
+                nuls += 1
+            total_temps_noir += t_noir
+            total_temps_blanc += t_blanc
+            total_avantage_noir += adv_noir
+            total_avantage_blanc += adv_blanc
+        for i in range(50):
+            ia1 = IA(str(n1))
+            ia2 = IA(str(n2))
+            gagnant, t_noir, t_blanc, adv_noir, adv_blanc = jouer_match(ia1, ia2, noir_commence=False)
+            if gagnant == 1:
+                victoires_noir += 1
+            elif gagnant == 2:
+                victoires_blanc += 1
+            else:
+                nuls += 1
+            total_temps_noir += t_noir
+            total_temps_blanc += t_blanc
+            total_avantage_noir += adv_noir
+            total_avantage_blanc += adv_blanc
+        stats[(n1, n2)] = {
+            "victoires_noir": victoires_noir,
+            "victoires_blanc": victoires_blanc,
+            "nuls": nuls,
+            "temps_noir": total_temps_noir,
+            "temps_blanc": total_temps_blanc,
+            "avantage_noir": total_avantage_noir,
+            "avantage_blanc": total_avantage_blanc
+        }
+        print(f"Résultats IA{n1} vs IA{n2} : Noir {victoires_noir} victoires, Blanc {victoires_blanc} victoires, Nuls {nuls}")
+        print(f"Temps total : Noir {total_temps_noir:.2f}s, Blanc {total_temps_blanc:.2f}s")
+        print(f"Avantage le plus long : Noir {total_avantage_noir} coups, Blanc {total_avantage_blanc} coups")
+    # Affichage récapitulatif final
+    print("\nRÉCAPITULATIF FINAL DU TOURNOI :")
+    print("="*60)
+    print(f"{'Duel':<15}{'Victoires N':<12}{'Victoires B':<12}{'Nuls':<8}{'Temps N (s)':<12}{'Temps B (s)':<12}{'Avantage N':<12}{'Avantage B':<12}")
+    print("-"*60)
+    for (n1, n2), res in stats.items():
+        print(f"IA{n1} vs IA{n2}  {res['victoires_noir']:<12}{res['victoires_blanc']:<12}{res['nuls']:<8}{res['temps_noir']:<12.2f}{res['temps_blanc']:<12.2f}{res['avantage_noir']:<12}{res['avantage_blanc']:<12}")
+    print("="*60)
     return stats
 
 if __name__ == "__main__":
