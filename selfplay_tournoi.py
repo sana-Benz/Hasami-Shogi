@@ -1,3 +1,22 @@
+# -*- coding: utf-8 -*-
+"""selfplay_tournoi_opt.py
+Headless self‑play tournament with CSV output and live progress
+--------------------------------------------------------------
+* Shared transposition table (TT) so both AIs reuse the same search data.
+* Forces Pygame to use the dummy driver – no window will ever open.
+* Prints progress to the terminal so you can see who is playing whom.
+* Saves per‑duel aggregate statistics in `resultats_tournoi.csv` with the
+  columns:
+      duel,wins_black,wins_white,draws,avg_moves,total_games
+
+NOTE – The previous SyntaxError came from using an augmented assignment on
+      a conditional expression. This version replaces it with a tiny `if`.
+"""
+
+from __future__ import annotations
+
+import os
+import csv
 import time
 import numpy as np
 from ia_shogi import IA
