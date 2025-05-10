@@ -153,6 +153,7 @@ class Interface:
                             for nom, rect in self.boutons.items():
                                 if rect.collidepoint(x, y):
                                     if nom == "jouer":
+                                        from hasami_shogi import HasamiShogi  # Import ici pour éviter l'erreur
                                         mode_jeu = self.options["mode_jeu"]
                                         niveau_ia = mode_jeu.split("_")[1] if mode_jeu != "2_joueurs" else "minimax"
                                         jeu = HasamiShogi(mode_jeu=mode_jeu, niveau_ia=niveau_ia)
