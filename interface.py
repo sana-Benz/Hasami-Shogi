@@ -223,6 +223,8 @@ class Interface:
                                         self.jeu_en_cours.ia1 = IA(str(self.niveau_ia_noir))
                                         self.jeu_en_cours.ia2 = IA(str(self.niveau_ia_blanc))
                                         self.jeu_en_cours.joueur_actuel = 1
+                                        self.jeu_en_cours.niveau_ia_noir = self.niveau_ia_noir
+                                        self.jeu_en_cours.niveau_ia_blanc = self.niveau_ia_blanc
                                         self.tournoi_en_cours = True
 
                         elif self.menu_actuel == "options":

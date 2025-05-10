@@ -135,15 +135,26 @@ class HasamiShogi:
                 y_options += 25
             
             # Afficher le joueur actuel et le mode de jeu
-            joueur = "Noir" if self.joueur_actuel == 1 else "Blanc"
-            mode = "2 joueurs" if self.mode_jeu == "2_joueurs" else f"IA ({self.ia.niveau})"
-            texte_joueur = police.render(f"Joueur actuel: {joueur}", True, NOIR)
-            texte_mode = police.render(f"Mode: {mode}", True, NOIR)
-            self.fenetre.blit(texte_joueur, (x_options, y_options + 20))
-            self.fenetre.blit(texte_mode, (x_options, y_options + 45))
+            if self.mode_jeu == "ia_vs_ia":
+                niveau_noir = getattr(self, 'niveau_ia_noir', 1)
+                niveau_blanc = getattr(self, 'niveau_ia_blanc', 1)
+                if self.joueur_actuel == 1:
+                    texte_joueur = police.render(f"IA niv {niveau_noir} (Noir)", True, NOIR)
+                else:
+                    texte_joueur = police.render(f"IA niv {niveau_blanc} (Blanc)", True, NOIR)
+                texte_mode = police.render("Mode : IA vs IA", True, NOIR)
+                self.fenetre.blit(texte_joueur, (x_options, y_options + 20))
+                self.fenetre.blit(texte_mode, (x_options, y_options + 45))
+            else:
+                joueur = "Noir" if self.joueur_actuel == 1 else "Blanc"
+                mode = "2 joueurs" if self.mode_jeu == "2_joueurs" else f"IA ({self.ia.niveau})"
+                texte_joueur = police.render(f"Joueur actuel: {joueur}", True, NOIR)
+                texte_mode = police.render(f"Mode: {mode}", True, NOIR)
+                self.fenetre.blit(texte_joueur, (x_options, y_options + 20))
+                self.fenetre.blit(texte_mode, (x_options, y_options + 45))
             
             # Afficher un message spécial pour le tour de l'IA
-            if self.mode_jeu != "2_joueurs" and self.joueur_actuel == 2:
+            if self.mode_jeu != "2_joueurs" and self.mode_jeu != "ia_vs_ia" and self.joueur_actuel == 2:
                 texte_ia = police.render("C'est le tour de l'IA", True, ROUGE)
                 self.fenetre.blit(texte_ia, (x_options, y_options + 70))
             
