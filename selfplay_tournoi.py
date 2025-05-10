@@ -53,6 +53,7 @@ def jouer_match(
 ) -> Tuple[int | None, int, float, float]:
     """Play one game and return (winner, nb_moves, time_black, time_white)."""
     jeu = HasamiShogi(mode_jeu="ia_vs_ia")
+    jeu.memo_positions = {}                 # ← nouveau dict videe
     jeu.ia1 = ia_noir
     jeu.ia2 = ia_blanc
     jeu.joueur_actuel = 1 if noir_commence else 2
