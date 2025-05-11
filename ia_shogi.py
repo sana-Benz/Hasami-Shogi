@@ -541,7 +541,7 @@ class IA:
                         meilleurs.append((depart, arrivee))
                 return random.choice(meilleurs)
         except Exception as e:
-            print(f"Erreur choisir_coup : {e}")
+            print(f"Erreur dans choisir_coup : {e}")
             return None
 
     def jouer_partie(niveau_ia1, niveau_ia2, afficher=False):
