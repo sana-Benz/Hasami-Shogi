@@ -21,8 +21,8 @@ class HasamiShogi:
             pygame.display.init()
         if not pygame.font.get_init():
             pygame.font.init()
-            
-        
+        self.derniere_capture   = 0     # demi‑coups since last capture
+        self.capture_effectuee  = False
         self.taille_case     = taille_case
         self.taille_plateau  = 9
         self.taille_fenetre  = self.taille_case * self.taille_plateau
@@ -339,7 +339,18 @@ class HasamiShogi:
         captures = self.verifier_capture(arrivee)
         for i, j in captures:
             self.plateau[i][j] = 0
+        self.capture_effectuee = bool(captures)
+        if self.capture_effectuee:
+            self.derniere_capture = 0        # reset
+        else:
+            self.derniere_capture += 1
 
+        # 60 half‑moves (30 moves each) without capture ⇒ draw
+        if self.derniere_capture >= 60:
+            self.partie_terminee = True
+            self.gagnant = None              # draw
+            print("Match nul : 60 demi‑coups sans capture")
+            return True                       # early exit
         cle = self.cle_position(3 - self.joueur_actuel)   # plateau + trait APRES le coup
         self.positions_occurrence[cle] = \
                 self.positions_occurrence.get(cle, 0) + 1
