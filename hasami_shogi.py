@@ -1,3 +1,41 @@
+"""
+Ce module implémente une version complète du jeu Hasami Shogi.
+Il gère à la fois la logique du jeu et l'interface graphique en utilisant Pygame.
+
+Caractéristiques principales :
+- Plateau de 9x9 avec pions noirs et blancs
+
+- Modes de jeu : 2 joueurs, joueur vs IA, IA vs IA
+
+- Système de capture avancé :
+  * Capture horizontale et verticale
+  * Capture diagonale (optionnelle)
+  * Capture aux coins (optionnelle)
+  
+- Conditions de victoire multiples :
+  * Seuil de défaite (nombre minimum de pions)
+  * Écart de victoire (différence de pions)
+  * Répétition de position (match nul)
+  
+- Interface graphique complète :
+  * Affichage du plateau et des pions
+  * Mise en évidence des coups valides
+  * Barre d'évaluation de position
+  * Messages de fin de partie
+  
+- Système anti-répétition :
+  * Détection des positions répétées
+  * Limite de 60 demi-coups sans capture
+
+Dépendances :
+- Pygame pour l'interface graphique
+- Numpy pour la gestion du plateau de jeu
+- ia_shogi pour l'ia
+
+Classes:
+    HasamiShogi: Classe principale gérant le jeu et l'interface graphique
+"""
+
 import pygame
 import numpy as np
 from typing import List, Tuple, Optional
@@ -9,24 +47,53 @@ GRIS = (128, 128, 128)
 ROUGE = (255, 0, 0)
 VERT = (0, 255, 0)
 BLEU = (0, 0, 255)
+#barre de score
 BAR_NOIR  = ( 20,  20,  20)   # haut de la barre (avantage noir)
 BAR_BLANC = (230, 230, 230)   # bas  de la barre (avantage blanc)
 
 class HasamiShogi:
+    """
+    Classe principale du jeu Hasami Shogi.
+    
+    Cette classe gère l'ensemble du jeu, incluant :
+    - L'initialisation du plateau
+    - La logique de jeu (déplacements, captures)
+    - L'interface graphique
+    - Les différents modes de jeu
+    - Le système de score et de victoire
+    
+    Attributes:
+        taille_case (int): Taille en pixels d'une case du plateau
+        taille_plateau (int): Nombre de cases par côté (9)
+        mode_jeu (str): Mode de jeu ("2_joueurs", "joueur_vs_ia", "ia_vs_ia")
+        capture_diagonale (bool): Captures en diagonale (optionnelles)
+        capture_multiple_corners (bool): Captures aux coins (optionnelles)
+        seuil_defaite (int): Nombre minimum de pions pour continuer
+        seuil_ecart_victoire (int): Écart de pions nécessaire pour gagner
+    """
+    
     def __init__(self, taille_case: int = 60, mode_jeu: str = "2_joueurs", niveau_ia: str = "minimax"):
-        # Initialisation de Pygame si nécessaire
+        """
+        Initialise une nouvelle partie de Hasami Shogi.
+        
+        Args:
+            taille_case: Taille en pixels d'une case du plateau
+            mode_jeu: Mode de jeu ("2_joueurs", "joueur_vs_ia", "ia_vs_ia")
+            niveau_ia: Niveau de l'IA
+        """
+    
         if not pygame.get_init():
             pygame.init()
         if not pygame.display.get_init():
             pygame.display.init()
         if not pygame.font.get_init():
             pygame.font.init()
-        self.derniere_capture   = 0     # demi‑coups since last capture
+        self.derniere_capture   = 0     
         self.capture_effectuee  = False
         self.taille_case     = taille_case
         self.taille_plateau  = 9
         self.taille_fenetre  = self.taille_case * self.taille_plateau
-        self.largeur_fenetre = self.taille_fenetre + 200   # zone options à droite
+        self.largeur_fenetre = self.taille_fenetre + 200   
         
         # Création de la fenêtre
         self.fenetre = pygame.display.set_mode((self.largeur_fenetre, self.taille_fenetre))
@@ -64,14 +131,31 @@ class HasamiShogi:
         }
         
     def initialiser_plateau(self):
-        """Initialise le plateau avec les pions de départ."""
+        """
+        Initialise le plateau de jeu avec la position de départ.
+        
+        Place les pions noirs sur la première ligne (index 0)
+        et les pions blancs sur la dernière ligne (index 8).
+        Le reste du plateau est vide (valeur 0).
+        """
         # Pions noirs (1) en haut
         self.plateau[0] = [1] * 9
         # Pions blancs (2) en bas
         self.plateau[-1] = [2] * 9
         
     def dessiner_plateau(self):
-        """Dessine le plateau de jeu."""
+        """
+        Dessine l'interface graphique complète du jeu.
+        
+        Cette méthode gère l'affichage de :
+        - La grille du plateau
+        - Les pions (noirs et blancs)
+        - Les coups valides en surbrillance
+        - Le pion sélectionné en surbrillance
+        - Les options de jeu actives
+        - L'interface utilisateur (boutons, scores)
+        - Les messages de fin de partie
+        """
         try:
             self.fenetre.fill(BLANC)
             
@@ -120,7 +204,7 @@ class HasamiShogi:
             self.fenetre.blit(titre, (x_options, y_options))
             y_options += 30
             
-            # Afficher chaque option
+            # Afficher les options
             options = [
                 ("Capture diagonale", self.capture_diagonale),
                 ("Capture coin", self.capture_multiple_corners),
@@ -187,8 +271,8 @@ class HasamiShogi:
 
                 
 
-            if self.ia:                        # que ce soit Minimax ou Alpha‑Beta
-                # score positif ⇒ avantage Noir, négatif ⇒ avantage Blanc
+            if self.ia:                        
+                # score positif donc avantage Noir, négatif donc avantage Blanc
                         score_n = self.ia.evaluer_position(self.plateau, 1)
                         score_b = self.ia.evaluer_position(self.plateau, 2)
                         eval_global = score_n - score_b       # ∈ [-inf, +inf]
@@ -196,11 +280,11 @@ class HasamiShogi:
                         # On borne pour éviter une barre démesurée
                         eval_global = max(-10.0, min(10.0, eval_global))
 
-                        # Convertit en pourcentage (‑10 → 0 %,   0 → 50 %,  +10 → 100 %)
+                        # Convertir en pourcentage (‑10 devient 0 %,   0 devient 50 %,  +10 devient 100 %)
                         pct_noir = (eval_global + 10) / 20
 
                         # Dimensions
-                        x_bar   = self.taille_fenetre + 170   # 20 px du bord droit
+                        x_bar   = self.taille_fenetre + 170   
                         w_bar   = 20
                         h_total = self.taille_fenetre
                         h_noir  = int(pct_noir * h_total)
@@ -211,7 +295,7 @@ class HasamiShogi:
                         pygame.draw.rect(self.fenetre, BAR_NOIR,
                                         (x_bar, h_total - h_noir, w_bar, h_noir)) # haut
 
-                        # Fine bordure
+                        # bordure
                         pygame.draw.rect(self.fenetre, NOIR,
                                         (x_bar, 0, w_bar, h_total), 1)
 
@@ -221,7 +305,7 @@ class HasamiShogi:
                         txtB = police_bar.render("B", True, NOIR)
                         self.fenetre.blit(txtN, (x_bar - 12, 2))
                         self.fenetre.blit(txtB, (x_bar - 12, h_total - txtB.get_height() - 2))
-                    # ----------------------------------------------------------------
+                    
             pygame.display.flip()
             return True
         except pygame.error as e:
@@ -229,7 +313,20 @@ class HasamiShogi:
             return False
     
     def obtenir_coups_valides(self, position: Tuple[int, int]) -> List[Tuple[int, int]]:
-        """Retourne la liste des coups valides pour un pion donné."""
+        """
+        Détermine tous les coups valides possibles pour un pion donné.
+        
+        Un coup est valide si :
+        - Le déplacement est horizontal ou vertical
+        - Le chemin est libre (pas de pions sur le trajet)
+        - La position d'arrivée est sur le plateau
+        
+        Args:
+            position: Tuple (ligne, colonne) de la position du pion
+        
+        Returns:
+            Liste de tuples (ligne, colonne) des positions valides
+        """
         i, j = position
         coups = []
         
@@ -256,7 +353,20 @@ class HasamiShogi:
         return coups
     
     def verifier_capture(self, position: Tuple[int, int]) -> List[Tuple[int, int]]:
-        """Vérifie et retourne les pions capturés après un mouvement."""
+        """
+        Vérifie et retourne les pions capturés après un mouvement.
+        
+        Les captures peuvent se faire de plusieurs façons :
+        - En encadrant les pions adverses horizontalement ou verticalement
+        - En diagonale si l'option capture_diagonale est activée
+        - Aux coins si l'option capture_multiple_corners est activée
+        
+        Args:
+            position: Tuple (ligne, colonne) de la position du dernier pion déplacé
+        
+        Returns:
+            Liste des positions (ligne, colonne) des pions capturés
+        """
         i, j = position
         captures = []
 
@@ -293,7 +403,7 @@ class HasamiShogi:
                     k += di
                     l += dj
 
-        # Capture d'un seul coin à la fois
+        # Capture coin
         coin_capture = None
         coins = [ (0, 0), (0, self.taille_plateau - 1), (self.taille_plateau - 1, 0), (self.taille_plateau - 1, self.taille_plateau - 1) ]
         for ci, cj in coins:
@@ -324,14 +434,30 @@ class HasamiShogi:
         return captures
     
     def deplacer_pion(self, depart: Tuple[int, int], arrivee: Tuple[int, int]) -> bool:
-        """Déplace un pion et effectue les captures nécessaires."""
+        """
+        Déplace un pion et gère les captures qui en résultent.
+        
+        Cette méthode :
+        1. Vérifie si le déplacement est valide
+        2. Effectue le déplacement
+        3. Vérifie et applique les captures
+        4. Met à jour le compteur de coups sans capture
+        5. Vérifie les conditions de victoire
+        
+        Args:
+            depart: Tuple (ligne, colonne) de la position initiale
+            arrivee: Tuple (ligne, colonne) de la position finale
+        
+        Returns:
+            bool: True si le déplacement a été effectué avec succès
+        """
         if arrivee not in self.coups_valides:
             return False
         
         i_dep, j_dep = depart
         i_arr, j_arr = arrivee
         
-        # Déplacer le pion
+        # Déplacement du pion
         self.plateau[i_arr][j_arr] = self.plateau[i_dep][j_dep]
         self.plateau[i_dep][j_dep] = 0
         
@@ -345,26 +471,40 @@ class HasamiShogi:
         else:
             self.derniere_capture += 1
 
-        # 60 half‑moves (30 moves each) without capture ⇒ draw
+        # si 60 coups sans capture alors match nul
         if self.derniere_capture >= 60:
             self.partie_terminee = True
-            self.gagnant = None              # draw
+            self.gagnant = None              
             print("Match nul : 60 demi‑coups sans capture")
-            return True                       # early exit
-        cle = self.cle_position(3 - self.joueur_actuel)   # plateau + trait APRES le coup
+            return True                      
+        cle = self.cle_position(3 - self.joueur_actuel)   
         self.positions_occurrence[cle] = \
                 self.positions_occurrence.get(cle, 0) + 1
-
+        # match nul par répétition de coups
         if self.positions_occurrence[cle] >= 3:
             self.partie_terminee = True
-            self.gagnant = None          # ⇒ bandeau « Match nul »
+            self.gagnant = None          
             print("Match nul : position répétée 3 fois")
-            return True                  # on quitte la fonction
-# -------------------------------------------------------
+            return True                 
+
         return True
     
     def verifier_victoire(self) -> Optional[int]:
-        """Vérifie si un joueur a gagné la partie."""
+        """
+        Vérifie si la partie est terminée et détermine le vainqueur.
+        
+        La victoire peut être obtenue de plusieurs façons :
+        - Un joueur a moins de pions que le seuil_defaite
+        - L'écart de pions entre les joueurs dépasse seuil_ecart_victoire
+        - Une position se répète trois fois (match nul)
+        
+        Returns:
+            Optional[int]: 
+                - 1 si les Noirs gagnent
+                - 2 si les Blancs gagnent
+                - None si la partie continue
+                - 0 en cas de match nul
+        """
         # Compter les pions restants
         pions_noirs = np.sum(self.plateau == 1)
         pions_blancs = np.sum(self.plateau == 2)
@@ -386,7 +526,38 @@ class HasamiShogi:
         return None
     
     def executer(self):
-        """Boucle principale du jeu."""
+        """
+        Boucle principale du jeu gérant les événements et l'affichage.
+        
+        Cette méthode :
+        - Gère les événements de la souris et du clavier
+        - Met à jour l'affichage du plateau
+        - Gère les tours des joueurs et de l'IA
+        - Contrôle le déroulement de la partie
+        - Gère les actions de fin de partie (recommencer/quitter)
+        
+        Fonctionnement détaillé :
+        1. Boucle principale :
+           - Traite les événements Pygame (clics, fermeture)
+           - Gère les interactions avec les boutons de contrôle
+           - Met à jour l'affichage du plateau
+        
+        2. Gestion des coups :
+           - Permet la sélection d'un pion
+           - Affiche les coups valides
+           - Effectue le déplacement si valide
+           - Gère les captures
+           - Vérifie les conditions de victoire
+        
+        3. Mode IA :
+           - Active l'IA au tour approprié
+           - Applique les coups de l'IA
+           - Gère la transition entre joueur et IA
+        
+        4. Fin de partie :
+           - Affiche le message de victoire
+           - Permet de recommencer ou quitter
+        """
         en_cours = True
         while en_cours:
             for event in pygame.event.get():
@@ -455,9 +626,23 @@ class HasamiShogi:
             pygame.time.delay(10)  # Ajouter un petit délai pour ne pas surcharger le CPU
         
         pygame.quit()
+
     def cle_position(self, joueur: int | None = None) -> str:
+        """
+        Génère une clé unique représentant l'état actuel du plateau.
         
-        if joueur is None:          # par défaut on prend self.joueur_actuel
+        Cette clé est utilisée pour :
+        - Détecter les répétitions de position
+        - Identifier les positions déjà évaluées par l'IA
+        
+        Args:
+            joueur: Optionnel, le joueur actuel (1 pour noir, 2 pour blanc)
+                   Si None, utilise self.joueur_actuel
+        
+        Returns:
+            str: Une chaîne unique représentant l'état du plateau et le joueur actif
+        """
+        if joueur is None:         
             joueur = self.joueur_actuel
         board_str = ''.join(map(str, self.plateau.flatten()))
         return board_str + str(joueur)
