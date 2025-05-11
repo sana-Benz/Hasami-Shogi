@@ -633,7 +633,7 @@ class HasamiShogi:
         
         Cette clé est utilisée pour :
         - Détecter les répétitions de position
-        - Identifier les positions déjà évaluées par l'IA
+        - Identifier les positions déjà évaluées par l'ia
         
         Args:
             joueur: Optionnel, le joueur actuel (1 pour noir, 2 pour blanc)
