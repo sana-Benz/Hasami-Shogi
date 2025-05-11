@@ -1,63 +1,87 @@
-# Hasami Shogi
+# Projet Hasami Shogi – Intelligence Artificielle
 
-Un jeu de Hasami Shogi implémenté en Python avec Pygame.
+Ce projet implémente le jeu **Hasami Shogi** avec plusieurs niveaux d'intelligence artificielle (IA) basés sur l'algorithme Minimax, avec ou sans élagage Alpha–Beta.
 
-## Description
+---
 
-Hasami Shogi est un jeu de stratégie japonais se jouant sur un plateau de 9x9 cases. Chaque joueur commence avec 9 pions alignés sur la première rangée de son côté. Le but est de capturer les pions adverses en les prenant en tenaille horizontalement ou verticalement.
+## 🎮 Lancement de l'interface
 
-## Installation
+Le fichier principal est `interface.py`. Il permet de :
 
-1. Assurez-vous d'avoir Python 3.7 ou supérieur installé sur votre système.
-2. Clonez ce dépôt ou téléchargez les fichiers.
-3. Installez les dépendances requises :
+- Jouer en mode 2 joueurs humains.
+- Jouer contre une IA (avec choix du niveau).
+- Lancer un match entre deux IA pour observer (mode spectateur).
+
+### ▶️ Exécution :
+
+Assurez-vous d'avoir `pygame` installé :
+
 ```bash
-pip install -r requirements.txt
+pip install pygame
 ```
 
-## Comment jouer
+Puis lancez simplement :
 
-1. Lancez le jeu en exécutant :
 ```bash
 python interface.py
 ```
 
-2. Dans le menu principal, vous pouvez :
-   - Cliquer sur "Jouer" pour commencer une partie
-   - Cliquer sur "Options" pour modifier les règles du jeu
-   - Cliquer sur "Quitter" pour fermer le jeu
+Un menu graphique apparaîtra. Depuis ce menu, vous pouvez :
+- Choisir le mode de jeu (2 joueurs, joueur vs IA, IA vs IA),
+- Configurer les niveaux des IA,
+- Lancer une partie,
+- Regarder une simulation entre deux IA.
 
-3. Pendant la partie :
-   - Cliquez sur un pion pour le sélectionner
-   - Les cases où vous pouvez déplacer le pion seront mises en surbrillance
-   - Cliquez sur une case valide pour déplacer le pion
-   - Les pions capturés seront automatiquement retirés du plateau
+---
 
-## Règles du jeu
+## 🤖 Lancement d'un tournoi automatisé (IA vs IA)
 
-### Règles de base
-- Les pions se déplacent horizontalement ou verticalement comme une tour aux échecs
-- Un pion peut capturer un ou plusieurs pions adverses en les prenant en tenaille
-- Un joueur perd s'il ne lui reste plus qu'un certain nombre de pions (seuil de défaite)
-- Un joueur gagne s'il a un certain nombre de pions de plus que son adversaire (seuil d'écart de victoire)
+Pour exécuter un tournoi complet entre les IA sans interface graphique, utilisez :
 
-### Options personnalisables
-- Capture en diagonale : active ou désactive la capture des pions en diagonale
-- Capture multiple dans les coins : active ou désactive la capture de plusieurs pions coincés dans un coin
-- Seuil de défaite : nombre minimum de pions avant la défaite (1-4)
-- Seuil d'écart de victoire : différence de pions nécessaire pour gagner (2-6)
+```bash
+python selfplay_tournoi.py
+```
 
-## Structure du projet
+Cela lancera 100 parties pour chaque duel entre IA de niveaux différents (6 duels en tout).
 
-- `hasami_shogi.py` : Contient la logique principale du jeu
-- `interface.py` : Gère l'interface utilisateur et les menus
-- `requirements.txt` : Liste des dépendances Python nécessaires
+Un fichier `match_results.csv` sera généré contenant :
+- `ia_white` : niveau de l'IA qui joue blanc,
+- `ia_black` : niveau de l'IA qui joue noir,
+- `winner` : 1 = blanc gagne, 2 = noir gagne, 0 = nul.
 
-## Contribution
+---
 
-Les contributions sont les bienvenues ! N'hésitez pas à :
-1. Fork le projet
-2. Créer une branche pour votre fonctionnalité
-3. Commiter vos changements
-4. Pousser vers la branche
-5. Ouvrir une Pull Request 
+## 📁 Organisation des fichiers
+
+| Fichier                  | Rôle                                                                 |
+|--------------------------|----------------------------------------------------------------------|
+| `interface.py`           | Interface utilisateur graphique (menu, parties, options)             |
+| `hasami_shogi.py`        | Logique du jeu Hasami Shogi (plateau, règles, captures, affichage)   |
+| `ia_shogi.py`            | Algorithmes IA (Minimax, Alpha–Beta, fonctions d'évaluation, etc.)   |
+| `selfplay_tournoi.py`    | Simulation automatique de parties IA vs IA pour analyse statistique  |
+| `match_results.csv`      | Résultats générés par les duels IA (créé après exécution du tournoi) |
+
+---
+
+## 🧠 Niveaux d’IA
+
+| Niveau | Évaluation            | Profondeur | Optimisation IA                  |
+|--------|------------------------|------------|----------------------------------|
+| 1      | Simple (naïve)         | 2-3        | Minimax sans élagage             |
+| 2      | Simple (naïve)         | 4          | Alpha–Beta + mémoïsation         |
+| 3      | Avancée                | 4          | Alpha–Beta + move ordering       |
+| 4      | Avancée dynamique      | 3 à 5      | Alpha–Beta + pruneurs + heuristique d’ouverture |
+
+---
+
+## ❓ Dépendances
+
+- Python 3.x
+- `pygame` (interface graphique)
+
+---
+
+## 📌 Auteurs
+
+Projet réalisé par **Omar Amaraa** et **Ben Slama Sana**  
+Encadré par **Mme Élise Bonzon**
