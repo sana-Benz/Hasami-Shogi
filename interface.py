@@ -46,7 +46,7 @@ class Interface:
                 "Jouer": pygame.Rect(300, 200, 200, 50),
                 "Options": pygame.Rect(300, 300, 200, 50),
                 "Quitter": pygame.Rect(300, 400, 200, 50),
-                "Mode Spectateur : IA vs IA": pygame.Rect(300, 500, 200, 50)
+                "IA vs IA": pygame.Rect(300, 500, 200, 50)
             }
             
             # Boutons du mode de jeu
@@ -191,7 +191,7 @@ class Interface:
                         if self.menu_actuel == "principal":
                             for nom, rect in self.boutons.items():
                                 if rect.collidepoint(x, y):
-                                    if nom == "jouer":
+                                    if nom == "Jouer":
                                         from hasami_shogi import HasamiShogi
                                         mode_jeu = self.options["mode_jeu"]
                                         if mode_jeu == "2_joueurs":
@@ -216,7 +216,7 @@ class Interface:
                                     elif nom == "Quitter":
                                         en_cours = False
                                         break
-                                    elif nom == "Mode Spectateur : IA vs IA":
+                                    elif nom == "IA vs IA":
                                         from hasami_shogi import HasamiShogi
                                         from ia_shogi import IA
                                         self.jeu_en_cours = HasamiShogi(mode_jeu="ia_vs_ia")
